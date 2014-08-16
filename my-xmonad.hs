@@ -2,6 +2,7 @@ import XMonad
 import Data.Default (def)
 import System.Environment (lookupEnv)
 import XMonad.Layout.Decoration (Theme (..), DefaultShrinker(..))
+import XMonad.Util.EZConfig (mkKeymap, checkKeymap, additionalKeys)
 import XMonad.Layout.NoBorders (smartBorders)
 import XMonad.Layout.Groups.Helpers (moveToGroupUp, moveToGroupDown, swapUp
                                     ,swapDown, swapMaster, focusGroupUp
@@ -10,6 +11,7 @@ import XMonad.Layout.Tabbed (Shrinker(..), addTabs)
 import XMonad.Layout.Simplest (Simplest(..))
 import XMonad.Layout.Groups (group)
 import XMonad.Layout.Groups.Examples (TiledTabsConfig(..)
+                                     ,tallTabs
                                      ,rowOfColumns, shrinkMasterGroups
                                      ,expandMasterGroups
                                      ,increaseNMasterGroups
@@ -23,9 +25,14 @@ import XMonad.Hooks.ManageDocks (Direction2D(L, R, U, D)
                                 ,ToggleStruts(..)
                                 ,manageDocks, avoidStruts)
 import XMonad.Actions.CopyWindow (copy)
-import XMonad.Actions.DynamicWorkspaces (addWorkspacePrompt, removeWorkspace
-                                        ,renameWorkspace, withWorkspace
-                                        ,withNthWorkspace, selectWorkspace)
+import XMonad.Actions.WindowGo (runOrRaiseNext, raiseNextMaybe)
+import XMonad.Actions.DynamicWorkspaces (addWorkspacePrompt
+                                        , removeEmptyWorkspace
+                                        , renameWorkspace
+                                        , withWorkspace
+                                        , withNthWorkspace
+                                        , selectWorkspace
+                                        ,toNthWorkspace)
 import XMonad.Layout.Named (named)
 import XMonad.Layout.Renamed (renamed, Rename(..))
 import XMonad.Actions.Navigation2D (Navigation2D, Direction2D
@@ -102,7 +109,7 @@ myFocusFollowsMouse = False
 myBorderWidth   = 1
 
 myWorkspaces :: [String]
-myWorkspaces = map show [1..10]
+myWorkspaces = ["home"]
 
 myModMask :: KeyMask
 myModMask = mod4Mask
@@ -127,96 +134,48 @@ shiftLayout :: X ()
 shiftLayout =
     sendMessage NextLayout
 
-myKeys :: XConfig Layout -> Map (KeyMask, KeySym) (X ())
-myKeys conf@(XConfig {XMonad.modMask = modm}) = fromList $
-    [
-      ((modm .|. shiftMask,   xK_r     ), renameWorkspace myXPConfig)
-    , ((modm,                 xK_Return), spawn $ "urxvt")
-    , ((modm .|. shiftMask,   xK_c     ), kill)
-    , ((modm, xK_space                 ), shiftLayout)
-    , ((modm .|. shiftMask,   xK_space ), setLayout $ XMonad.layoutHook conf)
-    , ((modm,                 xK_n     ), refresh)
-    , ((modm,                 xK_h     ), windowGo   L False)
-    , ((modm,                 xK_j     ), focusGroupDown)
-    , ((modm,                 xK_k     ), focusGroupUp)
-    , ((modm,                 xK_l     ), windowGo   R False)
-    , ((modm,                 xK_Tab   ), focusDown)
-    , ((modm .|. shiftMask,   xK_Tab   ), focusUp)
-    , ((modm .|. shiftMask,   xK_h     ), moveToGroupUp False)
-    , ((modm .|. shiftMask,   xK_j     ), focusDown)
-    , ((modm .|. shiftMask,   xK_k     ), focusUp)
-    , ((modm .|. shiftMask,   xK_l     ), moveToGroupDown False)
-    , ((modm .|. controlMask, xK_h     ), shrinkMasterGroups)
-    , ((modm .|. controlMask, xK_j     ), increaseNMasterGroups)
-    , ((modm .|. controlMask, xK_k     ), decreaseNMasterGroups)
-    , ((modm .|. controlMask, xK_l     ), expandMasterGroups)
-    , ((modm,                 xK_s     ), goToSelected def)
-    , ((modm,                 xK_f     ), withFocused $ windows . sink)
-    , ((modm,                 xK_comma ), sendMessage (IncMasterN 1))
-    , ((modm,                 xK_period), sendMessage (IncMasterN (-1)))
-    , ((modm,                 xK_b     ), sendMessage ToggleStruts)
-    , ((modm .|. shiftMask,   xK_q     ), io exitSuccess)
-    , ((modm,                 xK_q     ), spawn restartCommand)
-    , ((modm,                 xK_i     ), spawn "firefox")
-    , ((modm,                 xK_t     ), spawn "~/bin/tmux-urxvt")
-    , ((controlMask,          xK_Print ), spawn "sleep 0.2; scrot -s")
-    , ((0,                    xK_Print ), spawn "scrot")
-    , ((modm,                 xK_o     ), toggleWS)
-    , ((modm,                 xK_p     ), shellPrompt myXPConfig)
-    , ((modm,                 xK_slash ), windowPromptGoto myXPConfig {
-                                              autoComplete = Just 500000
-                                          })
-    , ((modm,                 xK_m     ), tagPrompt
-                                            myXPConfig $ withFocused . addTag)
-    , ((modm .|. shiftMask,   xK_m     ), tagDelPrompt myXPConfig)
+myKeymap =
+     [ ("M-S-r", renameWorkspace myXPConfig)
+     , ("M-<Return>", spawn "urxvt")
+     , ("M-S-c", kill)
+     , ("M-<Space>", shiftLayout)
+     , ("M-n", refresh)
+     , ("M-h", windowGo   L False)
+     , ("M-j", focusGroupDown)
+     , ("M-k", focusGroupUp)
+     , ("M-l", windowGo   R False)
+     , ("M-<Tab>", focusDown)
+     , ("M-`", raiseNextMaybe (return ()) (className =? "emacs"))
+     , ("M-S-`", spawn "~/bin/emc")
+     , ("M-S-<Tab>", focusUp)
+     , ("M-S-h", moveToGroupUp False)
+     , ("M-S-j", focusDown)
+     , ("M-S-k", focusUp)
+     , ("M-S-l", moveToGroupDown False)
+     , ("M-C-h", shrinkMasterGroups)
+     , ("M-C-j", increaseNMasterGroups)
+     , ("M-C-k", decreaseNMasterGroups)
+     , ("M-C-l", expandMasterGroups)
+     , ("M-s", goToSelected def)
+     , ("M-f", withFocused $ windows . sink)
+     , ("M-,", sendMessage (IncMasterN 1))
+     , ("M-.", sendMessage (IncMasterN (-1)))
+     , ("M-b", sendMessage ToggleStruts)
+     , ("M-S-q", io exitSuccess)
+     , ("M-q", spawn restartCommand)
+     , ("M-i", runOrRaiseNext "firefox" (className =? "Firefox"))
+     , ("M-t", spawn "~/bin/tmux-urxvt")
+     , ("M-o", toggleWS)
+     , ("M-p", shellPrompt myXPConfig)
+     , ("M-/", windowPromptGoto myXPConfig {autoComplete = Just 500000})
+     , ("M m", tagPrompt myXPConfig $ withFocused . addTag)
+     , ("M-S m", tagDelPrompt myXPConfig)
+     , ("M-v", selectWorkspace myXPConfig)
+     , ("M-C-m", withWorkspace myXPConfig (windows . copy))
+     , ("M-S-<Backspace>", removeEmptyWorkspace)
+     , ("M-S-a", addWorkspacePrompt myXPConfig)
+     ]
 
-      -- Prompt for a workspace to switch to
-    , ((modm,                 xK_v     ), selectWorkspace myXPConfig)
-
-      -- Prompt for a workspace and copy all client from the current one there
-    , ((modm .|. controlMask, xK_m     ), withWorkspace
-                                            myXPConfig (windows . copy))
-
-      -- Remove current workspace (must be empty)
-    , ((modm .|. shiftMask             , xK_BackSpace  ), removeWorkspace)
-
-    , ((modm .|. shiftMask, xK_a), addWorkspacePrompt myXPConfig)
-
-    ]
-    ++
-
---    -- tagging
---    [
---      ((modm, xK_g), tagPrompt promptConfig (\s -> withFocused (addTag s)))
---    , ((modm .|. shiftMask, xK_g), tagDelPrompt promptConfig)
---    ]
---    ++
-
-    --
-    -- mod-[1..9], Switch to workspace N
-    --
-    -- mod-[1..9], Switch to workspace N
-    -- mod-shift-[1..9], Move client to workspace N
-    --
-    [((m .|. modm, k), windows $ f i)
-        | (i, k) <- zip (XMonad.workspaces conf) workspaceKeys
-        , (f, m) <- [(greedyView, 0), (shift, shiftMask)]]
-    ++
-
-    [((m .|. modm, k), windows $ f i)
-        | (i, k) <- zip (XMonad.workspaces conf) workspaceKeys
-        , (f, m) <- [(greedyView, 0), (shift, shiftMask)]]
-    ++
-
-    --
-    -- mod-{w,e,r}, Switch to physical/Xinerama screens 1, 2, or 3
-    -- mod-shift-{w,e,r}, Move client to screen 1, 2, or 3
-    --
-    [((m .|. modm, key), screenWorkspace sc >>= flip whenJust (windows . f))
-        | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
-        , (f, m) <- [(view, 0), (shift, shiftMask)]]
-
-    where workspaceKeys = [xK_1 .. xK_9] ++ [xK_0] ++ [xK_F1 .. xK_F12]
 
 myMouseBindings :: XConfig t -> Map (KeyMask, Button) (Window -> X ())
 myMouseBindings (XConfig {XMonad.modMask = modm}) = fromList
@@ -249,16 +208,12 @@ myTheme = def { activeColor         = colorSelection
               , windowTitleIcons    = []
               }
 
-tallTabs c = G.group (_tab c _tabs)
-_tab (TTC s t) = renamed [CutWordsLeft 1] . addTabs s t
-_tabs = named "Tabs" Simplest
-
 myLayout = avoidStruts $
     tallTabs (TTC 1 0.5 (3/100) 1 0.5 (3/100) shrinkText myTheme)
     ||| smartBorders tiled
     where
         -- default tiling algorithm partitions the screen into two panes
-        tiled   = TallTabs nmaster delta ratio
+        tiled   = Tall nmaster delta ratio
 
         -- The default number of windows in the master pane
         nmaster = 1
@@ -305,7 +260,7 @@ myXPConfig = XPC {
         , changeModeKey      = xK_grave
         , maxComplRows       = Just 10
         , position           = Top
-        , height             = 14
+        , height             = 16
         , historySize        = 256
         , historyFilter      = id
         , defaultText        = []
@@ -317,30 +272,48 @@ myXPConfig = XPC {
 
 -- | Some nice xmobar defaults.
 mybarPP :: PP
-mybarPP = def { ppCurrent =
-                         xmobarColor colorBackground colorGreen . wrap "[" "]"
-                    , ppTitle   =
-                         xmobarColor colorGreen  colorSelection . shorten 40
-                    , ppVisible = wrap "(" ")"
-                    , ppUrgent  = xmobarColor colorRed colorYellow
-                    }
+mybarPP = def { ppCurrent          = xmobarColor colorBackground colorGreen . wrap "[" "]"
+              , ppTitle            = xmobarColor colorGreen  colorSelection . shorten 100
+              , ppHidden           = xmobarColor colorBlue   colorSelection
+              , ppHiddenNoWindows  = xmobarColor colorAqua   colorSelection
+              , ppUrgent           = xmobarColor colorRed colorYellow
+              }
 
-main :: IO ()
-main = do
-    h <- spawnPipe "/home/nathan/.xmonad/xmobar/dist/build/xmobar/xmobar" 
-    xmonad def {
+myExtraKeys = 
+        -- mod-[1..9]       %! Switch to workspace N
+        -- mod-shift-[1..9] %! Move client to workspace N
+        zip (zip (repeat (myModMask)) [xK_1..xK_9]) (map (withNthWorkspace greedyView) [0..])
+        ++
+        zip (zip (repeat (myModMask .|. shiftMask)) [xK_1..xK_9]) (map (withNthWorkspace shift) [0..])
+        ++
+        --
+        -- mod-{w,e,r}, Switch to physical/Xinerama screens 1, 2, or 3
+        -- mod-shift-{w,e,r}, Move client to screen 1, 2, or 3
+        --
+        [((m .|. myModMask, key), screenWorkspace sc >>= flip whenJust (windows . f))
+            | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
+            , (f, m) <- [(view, 0), (shift, shiftMask)]]
+
+myConfig = def {
             focusFollowsMouse  = myFocusFollowsMouse,
             borderWidth        = myBorderWidth,
             modMask            = myModMask,
             workspaces         = myWorkspaces,
             normalBorderColor  = myNormalBorderColor,
             focusedBorderColor = myFocusedBorderColor,
-            keys               = myKeys,
+            keys               = \c -> mkKeymap c myKeymap,
             mouseBindings      = myMouseBindings,
             layoutHook         = myLayout,
             manageHook         = myManageHook,
             handleEventHook    = myEventHook,
-            logHook            = ewmhDesktopsLogHook <+>
-                    dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h },
-            startupHook        = myStartupHook
-        }
+            startupHook        = return () >> checkKeymap myConfig myKeymap
+        } `additionalKeys` myExtraKeys
+
+
+
+main :: IO ()
+main = do
+    h <- spawnPipe "/home/nathan/.xmonad/xmobar/dist/build/xmobar/xmobar"
+    xmonad myConfig {
+      logHook = ewmhDesktopsLogHook <+> dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h }
+      }
