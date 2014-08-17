@@ -17,6 +17,8 @@ import XMonad.Layout.Groups.Examples (TiledTabsConfig(..)
                                      ,increaseNMasterGroups
                                      ,decreaseNMasterGroups
                                      ,shrinkText)
+import XMonad.Actions.CycleWS (WSType(AnyWS))
+import XMonad.Util.Types (Direction1D(Next, Prev))
 import XMonad.Layout.LayoutHints (layoutHints)
 import XMonad.Hooks.EwmhDesktops (ewmhDesktopsLogHook)
 import XMonad.Hooks.ManageHelpers (isFullscreen, doFullFloat
@@ -28,11 +30,17 @@ import XMonad.Actions.CopyWindow (copy)
 import XMonad.Actions.WindowGo (runOrRaiseNext, raiseNextMaybe)
 import XMonad.Actions.DynamicWorkspaces (addWorkspacePrompt
                                         , removeEmptyWorkspace
-                                        , renameWorkspace
                                         , withWorkspace
-                                        , withNthWorkspace
                                         , selectWorkspace
-                                        ,toNthWorkspace)
+                                        , toNthWorkspace)
+import XMonad.Actions.DynamicWorkspaceOrder ( moveTo
+                                            , shiftTo
+                                            , withNthWorkspace
+                                            , swapWith
+                                            , getSortByOrder
+                                            )
+import XMonad.Actions.WorkspaceNames ( renameWorkspace
+                                     )
 import XMonad.Layout.Named (named)
 import XMonad.Layout.Renamed (renamed, Rename(..))
 import XMonad.Actions.Navigation2D (Navigation2D, Direction2D
@@ -45,18 +53,39 @@ import XMonad.Hooks.DynamicLog (PP, dynamicLogString, dynamicLogWithPP
                                ,ppCurrent, ppVisible, ppHidden
                                ,ppHiddenNoWindows, ppUrgent, ppSep
                                ,ppOutput, ppWsSep, ppExtras, wrap, shorten
-                               ,xmobarColor)
+                               ,xmobarColor, ppSort)
 import XMonad.Actions.TagWindows (addTag, tagDelPrompt, tagPrompt)
 import XMonad.Actions.CycleWS ( toggleWS )
 import XMonad.Actions.GridSelect (goToSelected)
 import XMonad.Util.Run (hPutStrLn, spawnPipe)
-import XMonad.Util.Loggers (Logger, logCmd, loadAvg, date, battery)
-import XMonad.Prompt (XPConfig (..), XPPosition(Top)
-                     ,font, bgColor, defaultXPKeymap, fgColor, fgHLight
-                     ,bgHLight, borderColor, promptBorderWidth, promptKeymap
-                     ,completionKey, changeModeKey, position, height
-                     ,historySize, historyFilter, defaultText, autoComplete
-                     ,showCompletionOnTab, searchPredicate, alwaysHighlight)
+import XMonad.Util.Loggers (Logger
+                           ,logCmd
+                           ,loadAvg
+                           ,date
+                           ,battery)
+import XMonad.Prompt (XPConfig (..)
+                     ,XPPosition(Top, Bottom)
+                     ,font
+                     ,bgColor
+                     ,defaultXPKeymap
+                     ,fgColor
+                     ,fgHLight
+                     ,bgHLight
+                     ,borderColor
+                     ,promptBorderWidth
+                     ,promptKeymap
+                     ,completionKey
+                     ,changeModeKey
+                     ,position
+                     ,height
+                     ,historySize
+                     ,historyFilter
+                     ,defaultText
+                     ,autoComplete
+                     ,showCompletionOnTab
+                     ,searchPredicate
+                     ,alwaysHighlight
+                     )
 import XMonad.Prompt.Shell (shellPrompt)
 import XMonad.Prompt.Window (windowPromptGoto)
 import XMonad.StackSet (shiftMaster, focusMaster, sink
@@ -123,13 +152,6 @@ myFocusedBorderColor = colorSelection
 terminus :: String
 terminus = "-*-terminus-medium-r-*-*-12-120-*-*-*-*-iso8859-*"
 
-restartCommand :: String
-restartCommand = "cd ~/.xmonad &&"
-                    ++ "cabal build &&"
-                    ++ "cd ~/ &&"
---                    ++ "killall xmobar &&"
-                    ++ "~/.xmonad/xmonad --replace"
-
 shiftLayout :: X ()
 shiftLayout =
     sendMessage NextLayout
@@ -161,8 +183,7 @@ myKeymap =
      , ("M-,", sendMessage (IncMasterN 1))
      , ("M-.", sendMessage (IncMasterN (-1)))
      , ("M-b", sendMessage ToggleStruts)
-     , ("M-S-q", io exitSuccess)
-     , ("M-q", spawn restartCommand)
+     , ("M-C-q", io exitSuccess)
      , ("M-i", runOrRaiseNext "firefox" (className =? "Firefox"))
      , ("M-t", spawn "~/bin/tmux-urxvt")
      , ("M-o", toggleWS)
@@ -174,13 +195,17 @@ myKeymap =
      , ("M-C-m", withWorkspace myXPConfig (windows . copy))
      , ("M-S-<Backspace>", removeEmptyWorkspace)
      , ("M-S-a", addWorkspacePrompt myXPConfig)
+     , ("M-<R>", moveTo Next AnyWS)
+     , ("M-<L>", moveTo Prev AnyWS)
+     , ("M-S-<R>", swapWith Next AnyWS)
+     , ("M-S-<L>", swapWith Prev AnyWS)
      ]
 
 
 myMouseBindings :: XConfig t -> Map (KeyMask, Button) (Window -> X ())
 myMouseBindings (XConfig {XMonad.modMask = modm}) = fromList
     -- mod-button1, Set the window to floating mode and move by dragging
-    [ ((modm, button1), \w -> focus w >> mouseMoveWindow w
+    [ ((modm, button1), \w -> focus w  >> mouseMoveWindow w
                                        >> windows shiftMaster)
 
     -- mod-button2, Raise the window to the top of the stack
@@ -246,6 +271,30 @@ myLogHook = ewmhDesktopsLogHook
 myStartupHook :: X ()
 myStartupHook = return ()
 
+myBottomXPConfig :: XPConfig
+myBottomXPConfig = XPC {
+                         XMonad.Prompt.font = terminus
+                       , bgColor            = colorBackground
+                       , fgColor            = colorForeground
+                       , fgHLight           = colorForeground
+                       , bgHLight           = colorSelection
+                       , borderColor        = colorComment
+                       , promptBorderWidth  = 0
+                       , promptKeymap       = defaultXPKeymap
+                       , completionKey      = xK_Tab
+                       , changeModeKey      = xK_grave
+                       , maxComplRows       = Just 10
+                       , position           = Bottom
+                       , height             = 16
+                       , historySize        = 256
+                       , historyFilter      = id
+                       , defaultText        = []
+                       , autoComplete       = Nothing
+                       , showCompletionOnTab = False
+                       , searchPredicate    = isPrefixOf
+                       , alwaysHighlight    = True
+                       }
+
 myXPConfig :: XPConfig
 myXPConfig = XPC {
           XMonad.Prompt.font = terminus
@@ -276,10 +325,11 @@ mybarPP = def { ppCurrent          = xmobarColor colorBackground colorGreen . wr
               , ppTitle            = xmobarColor colorGreen  colorSelection . shorten 100
               , ppHidden           = xmobarColor colorBlue   colorSelection
               , ppHiddenNoWindows  = xmobarColor colorAqua   colorSelection
+              , ppSort = getSortByOrder
               , ppUrgent           = xmobarColor colorRed colorYellow
               }
 
-myExtraKeys = 
+myExtraKeys =
         -- mod-[1..9]       %! Switch to workspace N
         -- mod-shift-[1..9] %! Move client to workspace N
         zip (zip (repeat (myModMask)) [xK_1..xK_9]) (map (withNthWorkspace greedyView) [0..])
@@ -291,7 +341,7 @@ myExtraKeys =
         -- mod-shift-{w,e,r}, Move client to screen 1, 2, or 3
         --
         [((m .|. myModMask, key), screenWorkspace sc >>= flip whenJust (windows . f))
-            | (key, sc) <- zip [xK_w, xK_e, xK_r] [0..]
+            | (key, sc) <- zip [xK_q, xK_w, xK_e] [0..]
             , (f, m) <- [(view, 0), (shift, shiftMask)]]
 
 myConfig = def {
@@ -309,11 +359,9 @@ myConfig = def {
             startupHook        = return () >> checkKeymap myConfig myKeymap
         } `additionalKeys` myExtraKeys
 
-
-
 main :: IO ()
 main = do
     h <- spawnPipe "/home/nathan/.xmonad/xmobar/dist/build/xmobar/xmobar"
     xmonad myConfig {
-      logHook = ewmhDesktopsLogHook <+> dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h }
+        logHook = ewmhDesktopsLogHook <+> dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h }
       }
