@@ -64,7 +64,7 @@ import XMonad.Util.Loggers (Logger
                            ,date
                            ,battery)
 import XMonad.Prompt (XPConfig (..)
-                     ,XPPosition(Top, Bottom)
+                     ,XPPosition(Bottom)
                      ,font
                      ,bgColor
                      ,defaultXPKeymap
@@ -153,8 +153,7 @@ terminus :: String
 terminus = "-*-terminus-medium-r-*-*-12-120-*-*-*-*-iso8859-*"
 
 shiftLayout :: X ()
-shiftLayout =
-    sendMessage NextLayout
+shiftLayout = sendMessage NextLayout
 
 myKeymap =
      [ ("M-S-r", renameWorkspace myXPConfig)
@@ -271,30 +270,6 @@ myLogHook = ewmhDesktopsLogHook
 myStartupHook :: X ()
 myStartupHook = return ()
 
-myBottomXPConfig :: XPConfig
-myBottomXPConfig = XPC {
-                         XMonad.Prompt.font = terminus
-                       , bgColor            = colorBackground
-                       , fgColor            = colorForeground
-                       , fgHLight           = colorForeground
-                       , bgHLight           = colorSelection
-                       , borderColor        = colorComment
-                       , promptBorderWidth  = 0
-                       , promptKeymap       = defaultXPKeymap
-                       , completionKey      = xK_Tab
-                       , changeModeKey      = xK_grave
-                       , maxComplRows       = Just 10
-                       , position           = Bottom
-                       , height             = 16
-                       , historySize        = 256
-                       , historyFilter      = id
-                       , defaultText        = []
-                       , autoComplete       = Nothing
-                       , showCompletionOnTab = False
-                       , searchPredicate    = isPrefixOf
-                       , alwaysHighlight    = True
-                       }
-
 myXPConfig :: XPConfig
 myXPConfig = XPC {
           XMonad.Prompt.font = terminus
@@ -308,7 +283,7 @@ myXPConfig = XPC {
         , completionKey      = xK_Tab
         , changeModeKey      = xK_grave
         , maxComplRows       = Just 10
-        , position           = Top
+        , position           = Bottom
         , height             = 16
         , historySize        = 256
         , historyFilter      = id
