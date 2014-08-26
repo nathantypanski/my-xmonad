@@ -20,7 +20,7 @@ import XMonad.Layout.Groups.Examples (TiledTabsConfig(..)
 import XMonad.Actions.CycleWS (WSType(AnyWS))
 import XMonad.Util.Types (Direction1D(Next, Prev))
 import XMonad.Layout.LayoutHints (layoutHints)
-import XMonad.Hooks.EwmhDesktops (ewmhDesktopsLogHook)
+import XMonad.Hooks.EwmhDesktops (ewmh, ewmhDesktopsEventHook)
 import XMonad.Hooks.ManageHelpers (isFullscreen, doFullFloat
                                   ,composeOne, (-?>))
 import XMonad.Hooks.ManageDocks (Direction2D(L, R, U, D)
@@ -88,8 +88,11 @@ import XMonad.Prompt (XPConfig (..)
                      )
 import XMonad.Prompt.Shell (shellPrompt)
 import XMonad.Prompt.Window (windowPromptGoto)
-import XMonad.StackSet (shiftMaster, focusMaster, sink
+import XMonad.StackSet (shiftMaster,
+                                   focusMaster, sink
                        ,greedyView, shift, view)
+import XMonad.Util.ScratchPad (scratchPadManageHook
+                              ,scratchPad)
 import Data.List (isPrefixOf)
 import Data.Monoid (All, mempty)
 import Data.Map (Map, fromList)
@@ -262,10 +265,10 @@ myManageHook = manageDocks
         composeOne [isFullscreen -?> doFullFloat]
 
 myEventHook :: Event -> X All
-myEventHook = mempty
+myEventHook = ewmhDesktopsEventHook
 
 myLogHook :: X ()
-myLogHook = ewmhDesktopsLogHook
+myLogHook =  return ()
 
 myStartupHook :: X ()
 myStartupHook = return ()
@@ -337,6 +340,6 @@ myConfig = def {
 main :: IO ()
 main = do
     h <- spawnPipe "/home/nathan/.xmonad/xmobar/dist/build/xmobar/xmobar"
-    xmonad myConfig {
-        logHook = ewmhDesktopsLogHook <+> dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h }
+    xmonad $ ewmh myConfig {
+        logHook = dynamicLogWithPP mybarPP { ppOutput = hPutStrLn h }
       }
