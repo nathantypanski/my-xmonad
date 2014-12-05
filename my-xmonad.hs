@@ -88,11 +88,14 @@ import XMonad.Prompt (XPConfig (..)
                      )
 import XMonad.Prompt.Shell (shellPrompt)
 import XMonad.Prompt.Window (windowPromptGoto)
-import XMonad.StackSet (shiftMaster,
-                                   focusMaster, sink
-                       ,greedyView, shift, view)
-import XMonad.Util.ScratchPad (scratchPadManageHook
-                              ,scratchPad)
+import XMonad.StackSet (shiftMaster
+                       ,focusMaster
+                       ,sink
+                       ,greedyView
+                       ,shift
+                       ,view
+                       ,RationalRect(..)
+                       )
 import Data.List (isPrefixOf)
 import Data.Monoid (All, mempty)
 import Data.Map (Map, fromList)
@@ -158,12 +161,14 @@ terminus = "-*-terminus-medium-r-*-*-12-120-*-*-*-*-iso8859-*"
 shiftLayout :: X ()
 shiftLayout = sendMessage NextLayout
 
+myTerm :: String
+myTerm = "urxvtc"
+
 myKeymap =
      [ ("M-S-r", renameWorkspace myXPConfig)
-     , ("M-<Return>", spawn "urxvt")
+     , ("M-<Return>", spawn myTerm)
      , ("M-S-c", kill)
      , ("M-<Space>", shiftLayout)
-     , ("M-n", refresh)
      , ("M-h", windowGo   L False)
      , ("M-j", focusGroupDown)
      , ("M-k", focusGroupUp)
@@ -191,7 +196,7 @@ myKeymap =
      , ("M-o", toggleWS)
      , ("M-p", shellPrompt myXPConfig)
      , ("M-/", windowPromptGoto myXPConfig {autoComplete = Just 500000})
-     , ("M m", tagPrompt myXPConfig $ withFocused . addTag)
+     , ("M-m", tagPrompt myXPConfig $ withFocused . addTag)
      , ("M-S m", tagDelPrompt myXPConfig)
      , ("M-v", selectWorkspace myXPConfig)
      , ("M-C-m", withWorkspace myXPConfig (windows . copy))
