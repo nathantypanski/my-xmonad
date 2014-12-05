@@ -9,7 +9,7 @@ homepage:            http://github.com/nathantypanski/dotfiles
 license:             BSD3
 license-file:        LICENSE
 author:              Nathan Typanski
-maintainer:          mail@nathantypanski.com
+maintainer:          ndt@nathantypanski.com
 -- copyright:
 -- category:
 build-type:          Simple
