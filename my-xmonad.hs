@@ -124,6 +124,7 @@ import XMonad.Prompt (XPConfig (..)
                      )
 import XMonad.Prompt.Shell (shellPrompt)
 import XMonad.Prompt.Window (windowPromptGoto)
+import XMonad.Prompt.Pass (passPrompt)
 import XMonad.StackSet (shiftMaster
                        ,focusMaster
                        ,sink
@@ -183,7 +184,7 @@ myFocusFollowsMouse = False
 myBorderWidth   = 1
 
 myWorkspaces :: [String]
-myWorkspaces = ["home"]
+myWorkspaces = map show $ [1..9] ++ [0]
 
 myModMask :: KeyMask
 myModMask = mod4Mask
@@ -241,6 +242,7 @@ myKeymap =
      , ("M-C-m", withWorkspace myXPConfig (windows . copy))
      , ("M-S-<Backspace>", removeEmptyWorkspace)
      , ("M-S-a", addWorkspacePrompt myXPConfig)
+     , ("M-S-p", passPrompt myXPConfig)
      , ("M-<R>", moveTo Next AnyWS)
      , ("M-<L>", moveTo Prev AnyWS)
      , ("M-S-<R>", swapWith Next AnyWS)
@@ -354,17 +356,22 @@ mybarPP = def { ppCurrent          = xmobarColor colorBackground colorGreen . wr
 myExtraKeys =
         -- mod-[1..9]       %! Switch to workspace N
         -- mod-shift-[1..9] %! Move client to workspace N
-        zip (zip (repeat (myModMask)) [xK_1..xK_9]) (map (withNthWorkspace greedyView) [0..])
+        zip (zip (repeat myModMask) myWorkspaceKeys)
+            (map (withNthWorkspace greedyView) [0..])
         ++
-        zip (zip (repeat (myModMask .|. shiftMask)) [xK_1..xK_9]) (map (withNthWorkspace shift) [0..])
+        zip (zip (repeat (myModMask .|. shiftMask)) myWorkspaceKeys)
+            (map (withNthWorkspace shift) [0..])
         ++
         --
-        -- mod-{w,e,r}, Switch to physical/Xinerama screens 1, 2, or 3
-        -- mod-shift-{w,e,r}, Move client to screen 1, 2, or 3
+        -- mod-{w,e}, Switch to screen 1 or 2
+        -- mod-shift-{w,e}, Move client to screen 1 or 2
         --
         [((m .|. myModMask, key), screenWorkspace sc >>= flip whenJust (windows . f))
-            | (key, sc) <- zip [xK_q, xK_w, xK_e] [0..]
+            | (key, sc) <- zip [xK_w, xK_e] [0..]
             , (f, m) <- [(view, 0), (shift, shiftMask)]]
+
+    where myWorkspaceKeys = [xK_1, xK_2, xK_3, xK_4, xK_5,
+                             xK_6, xK_7, xK_8, xK_9, xK_0]
 
 myConfig = def {
             focusFollowsMouse  = myFocusFollowsMouse,
